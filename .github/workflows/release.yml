@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build web UI
+        working-directory: web
+        run: npm ci && npm run build
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Tests
+        run: cargo test --workspace
+      - name: Build binaries
+        run: cargo build --release --locked --bin porgous --bin porgous-agent
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          VERSION="${GITHUB_REF_NAME#v}"
+          install -m755 target/release/porgous dist/porgous-x86_64-linux
+          install -m755 target/release/porgous-agent dist/porgous-agent-x86_64-linux
+          install -m644 config/porgous.toml.example dist/porgous.toml.example
+          install -m644 packaging/porgous.service dist/porgous.service
+          install -m644 README.md LICENSE dist/
+          tar -czf dist/porgous-x86_64-linux.tar.gz -C dist \
+            porgous-x86_64-linux porgous-agent-x86_64-linux porgous.toml.example porgous.service README.md LICENSE
+          bash packaging/build-deb.sh "$VERSION" amd64 target/release/porgous target/release/porgous-agent dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-dist
+          path: dist/*
+
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build web UI
+        shell: bash
+        working-directory: web
+        run: npm ci && npm run build
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Tests
+        shell: bash
+        run: cargo test --workspace
+      - name: Build binaries
+        shell: bash
+        run: cargo build --release --locked --bin porgous --bin porgous-agent
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp target/release/porgous.exe dist/porgous-x86_64-windows.exe
+          cp target/release/porgous-agent.exe dist/porgous-agent-x86_64-windows.exe
+          cp config/porgous.toml.example README.md LICENSE dist/
+          tar -czf dist/porgous-windows-x86_64.tar.gz -C dist \
+            porgous-x86_64-windows.exe porgous-agent-x86_64-windows.exe porgous.toml.example README.md LICENSE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-dist
+          path: dist/*
+
+  publish:
+    needs: [linux, windows]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+      - name: Sign checksums
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
+            echo "::warning::RELEASE_SIGNING_KEY is not set; publishing unsigned."
+            exit 0
+          fi
+          printf '%s' "$RELEASE_SIGNING_KEY" > signing.key
+          chmod 600 signing.key
+          chmod +x dist/porgous-x86_64-linux
+          ./dist/porgous-x86_64-linux sign signing.key dist/SHA256SUMS
+          rm -f signing.key
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') }}
+          body: |
+            Porgous ${{ github.ref_name }}
+
+            Linux: `porgous-x86_64-linux.tar.gz`, `.deb`
+            Windows: `porgous-windows-x86_64.tar.gz`, portable `.exe`
+
+            Every asset is listed in `SHA256SUMS`. If `SHA256SUMS.sig` is present,
+            verify it with the release Ed25519 public key before installing.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

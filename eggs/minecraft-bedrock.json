@@ -1,0 +1,23 @@
+{
+  "id": "minecraft-bedrock",
+  "name": "Minecraft: Bedrock Edition",
+  "description": "Bedrock dedicated server using the maintained itzg image. Uses UDP only.",
+  "category": "Minecraft",
+  "docker_images": ["itzg/minecraft-bedrock-server:latest"],
+  "startup": "",
+  "stop_command": "stop",
+  "startup_detection": "Server started",
+  "install": {
+    "image": "alpine:3.20",
+    "script": "set -e\necho 'Bedrock server files are managed by the container image.'\nprintf 'server-name=%s\\ngamemode=survival\\nmax-players=%s\\nonline-mode=true\\n' \"$SERVER_NAME\" \"$MAX_PLAYERS\" > server.properties\necho 'Install complete'"
+  },
+  "variables": [
+    {"key": "SERVER_NAME", "name": "Server name", "default_value": "Porgous Bedrock", "user_editable": true, "rules": "required|max:64"},
+    {"key": "GAMEMODE", "name": "Game mode", "default_value": "survival", "user_editable": true, "rules": "required|in:survival,creative,adventure"},
+    {"key": "MAX_PLAYERS", "name": "Max players", "default_value": "10", "user_editable": true, "rules": "required|integer"},
+    {"key": "EULA", "name": "Accept Minecraft EULA", "description": "Set to TRUE to accept https://minecraft.net/eula.", "default_value": "TRUE", "user_editable": true, "rules": "required|in:TRUE,FALSE"}
+  ],
+  "ports": [{"name": "Bedrock", "port": 19132, "protocol": "udp"}],
+  "notes": "Bedrock requires a UDP allocation. The image writes worlds into /home/container/worlds.",
+  "version": 1
+}

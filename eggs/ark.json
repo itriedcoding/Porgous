@@ -1,0 +1,28 @@
+{
+  "id": "ark",
+  "name": "ARK: Survival Evolved",
+  "description": "ARK dedicated server using the hermsi image. The first install downloads roughly 20 GB.",
+  "category": "Survival",
+  "docker_images": ["hermsi/ark-server:latest"],
+  "startup": "",
+  "stop_command": "saveworld",
+  "startup_detection": "Server has completed startup",
+  "install": {
+    "image": "alpine:3.20",
+    "script": "set -e\nmkdir -p ark\necho 'ARK server files are downloaded by the container image on first start.'\necho 'Install complete'"
+  },
+  "variables": [
+    {"key": "SESSION_NAME", "name": "Session name", "default_value": "Porgous ARK", "user_editable": true, "rules": "required|max:64"},
+    {"key": "SERVER_PASSWORD", "name": "Join password", "default_value": "", "user_editable": true, "rules": "max:64"},
+    {"key": "ADMIN_PASSWORD", "name": "Admin password", "default_value": "", "user_editable": true, "rules": "max:64"},
+    {"key": "MAP", "name": "Map", "default_value": "TheIsland", "user_editable": true, "rules": "required|max:64"},
+    {"key": "MAX_PLAYERS", "name": "Max players", "default_value": "20", "user_editable": true, "rules": "required|integer"}
+  ],
+  "ports": [
+    {"name": "Game", "port": 7777, "protocol": "udp"},
+    {"name": "Raw UDP", "port": 7778, "protocol": "udp"},
+    {"name": "Query", "port": 27015, "protocol": "udp"}
+  ],
+  "notes": "ARK requires at least 8 GB of RAM and a large disk allocation.",
+  "version": 1
+}

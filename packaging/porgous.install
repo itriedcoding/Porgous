@@ -1,0 +1,11 @@
+post_install() {
+  getent group porgous >/dev/null || groupadd --system porgous
+  getent passwd porgous >/dev/null || useradd --system --gid porgous --home-dir /var/lib/porgous --shell /usr/bin/nologin porgous
+  chown -R porgous:porgous /var/lib/porgous /var/lib/porgous-node
+  usermod -aG docker porgous 2>/dev/null || true
+  echo "Initial admin credentials (if generated): /var/lib/porgous/initial-admin.txt"
+}
+
+post_upgrade() {
+  post_install
+}

@@ -1,0 +1,46 @@
+[package]
+name = "porgous-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Core library for Porgous, a lightweight game server management platform"
+
+[dependencies]
+anyhow.workspace = true
+argon2.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+axum-server.workspace = true
+base64.workspace = true
+bollard.workspace = true
+bytes.workspace = true
+chacha20poly1305.workspace = true
+chrono.workspace = true
+data-encoding.workspace = true
+ed25519-dalek.workspace = true
+flate2.workspace = true
+futures-util.workspace = true
+hmac.workspace = true
+mime_guess.workspace = true
+rand.workspace = true
+reqwest.workspace = true
+rust-embed.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+subtle.workspace = true
+tar.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tokio-util.workspace = true
+toml.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

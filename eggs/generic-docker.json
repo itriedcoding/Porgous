@@ -1,0 +1,21 @@
+{
+  "id": "generic-docker",
+  "name": "Generic Docker Application",
+  "description": "Run any HTTP, TCP or UDP application from a Docker image with a persistent volume and console access.",
+  "category": "Generic",
+  "docker_images": ["alpine:3.20", "debian:12-slim", "ubuntu:24.04"],
+  "startup": "sh start.sh",
+  "stop_command": "",
+  "startup_detection": null,
+  "install": {
+    "image": "alpine:3.20",
+    "script": "set -e\ncat > start.sh <<'EOF'\n#!/bin/sh\necho \"Generic Porgous server started. Edit start.sh in the file manager.\"\nwhile true; do sleep 3600; done\nEOF\nchmod +x start.sh\necho 'Install complete'"
+  },
+  "variables": [
+    {"key": "START_COMMAND", "name": "Start command", "default_value": "sh start.sh", "user_editable": true, "rules": "required|max:512"},
+    {"key": "APP_PORT", "name": "Application port", "default_value": "8080", "user_editable": true, "rules": "required|integer"}
+  ],
+  "ports": [{"name": "Application", "port": 8080, "protocol": "tcp"}],
+  "notes": "The image's entrypoint runs unchanged; the startup command runs as a shell command in the container.",
+  "version": 1
+}

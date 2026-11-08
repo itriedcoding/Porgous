@@ -1,0 +1,27 @@
+{
+  "id": "tf2",
+  "name": "Team Fortress 2",
+  "description": "Team Fortress 2 dedicated server with configurable map, slots and RCON password.",
+  "category": "Shooter",
+  "docker_images": ["cm2network/tf2:latest"],
+  "startup": "./srcds_run -game tf -console -port {{PORT}} +sv_pure 1 +map {{START_MAP}} +maxplayers {{MAX_PLAYERS}} +rcon_password {{RCON_PASSWORD}} +hostname \"{{SERVER_NAME}}\"",
+  "stop_command": "quit",
+  "startup_detection": "Server is now playing",
+  "install": {
+    "image": "alpine:3.20",
+    "script": "set -e\nmkdir -p tf/cfg\necho 'TF2 server files are downloaded by the container image on first start.'\necho 'Install complete'"
+  },
+  "variables": [
+    {"key": "SERVER_NAME", "name": "Server name", "default_value": "Porgous TF2", "user_editable": true, "rules": "required|max:64"},
+    {"key": "START_MAP", "name": "Start map", "default_value": "ctf_2fort", "user_editable": true, "rules": "required|max:64"},
+    {"key": "MAX_PLAYERS", "name": "Max players", "default_value": "24", "user_editable": true, "rules": "required|integer|between:1,32"},
+    {"key": "RCON_PASSWORD", "name": "RCON password", "default_value": "", "user_editable": true, "rules": "max:64"},
+    {"key": "PORT", "name": "Game port", "description": "Filled from the primary allocation by the panel.", "default_value": "27015", "user_editable": false, "rules": "required|integer"}
+  ],
+  "ports": [
+    {"name": "Game", "port": 27015, "protocol": "udp"},
+    {"name": "RCON", "port": 27015, "protocol": "tcp"}
+  ],
+  "notes": "Set the server port variable to the allocated port if you change the primary allocation.",
+  "version": 1
+}

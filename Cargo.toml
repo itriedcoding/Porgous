@@ -1,0 +1,63 @@
+[workspace]
+resolver = "2"
+members = ["crates/porgous-core", "crates/porgous-panel", "crates/porgous-agent"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+authors = ["Porgous contributors"]
+repository = "https://github.com/itriedcoding/Porgous"
+homepage = "https://github.com/itriedcoding/Porgous"
+
+[workspace.dependencies]
+anyhow = "1"
+argon2 = "0.5"
+async-trait = "0.1"
+axum = { version = "0.8", features = ["ws", "macros"] }
+axum-server = { version = "0.7", features = ["tls-rustls"] }
+base64 = "0.22"
+bollard = "0.17"
+bytes = "1"
+chacha20poly1305 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+data-encoding = "2"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+flate2 = "1"
+futures-util = "0.3"
+hmac = "0.12"
+mime_guess = "2"
+rand = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+rust-embed = "8"
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha1 = "0.10"
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "any", "sqlite", "postgres"] }
+subtle = "2"
+tar = "0.4"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["io-util"] }
+tokio-util = { version = "0.7", features = ["io"] }
+toml = "0.8"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["trace", "cors", "limit", "timeout", "set-header"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+opt-level = 3
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2

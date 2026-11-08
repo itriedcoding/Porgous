@@ -1,0 +1,24 @@
+{
+  "id": "fivem",
+  "name": "FiveM",
+  "description": "FiveM (FXServer) roleplay server. Requires a Cfx.re license key and a server.cfg.",
+  "category": "GTA",
+  "docker_images": ["spritsail/fivem:latest"],
+  "startup": "+exec {{SERVER_CFG}}",
+  "stop_command": "quit",
+  "startup_detection": "Authenticated with cfx.re",
+  "install": {
+    "image": "alpine:3.20",
+    "script": "set -e\nmkdir -p resources cache\ncat > server.cfg <<'EOF'\nendpoint_add_tcp \"0.0.0.0:30120\"\nendpoint_add_udp \"0.0.0.0:30120\"\nsv_hostname \"Porgous FiveM Server\"\nsv_maxclients 32\nsv_licenseKey \"changeme\"\nensure mapmanager\nensure chat\nensure spawnmanager\nensure sessionmanager\nensure fivem\nensure hardcap\nensure rconlog\nEOF\necho 'Edit server.cfg, set sv_licenseKey, then start the server.'"
+  },
+  "variables": [
+    {"key": "SERVER_CFG", "name": "Server config", "default_value": "server.cfg", "user_editable": false, "rules": "required|max:64"},
+    {"key": "FIVEM_LICENSE", "name": "Cfx.re license key", "description": "Key from https://keymaster.fivem.net. Without it FXServer will not start.", "default_value": "", "user_editable": true, "rules": "max:64"}
+  ],
+  "ports": [
+    {"name": "Game", "port": 30120, "protocol": "tcp"},
+    {"name": "Game (UDP)", "port": 30120, "protocol": "udp"}
+  ],
+  "notes": "Set sv_licenseKey in server.cfg via the file manager before first start. Resources go in the resources folder.",
+  "version": 1
+}

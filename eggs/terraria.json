@@ -1,0 +1,23 @@
+{
+  "id": "terraria",
+  "name": "Terraria (TShock)",
+  "description": "Terraria dedicated server with TShock support via the ryshe image.",
+  "category": "Sandbox",
+  "docker_images": ["ryshe/terraria:latest"],
+  "startup": "",
+  "stop_command": "exit",
+  "startup_detection": "Server started",
+  "install": {
+    "image": "alpine:3.20",
+    "script": "set -e\nmkdir -p worlds\necho 'Terraria server files are provided by the container image.'\necho 'Install complete'"
+  },
+  "variables": [
+    {"key": "WORLD_NAME", "name": "World name", "default_value": "PorgousWorld", "user_editable": true, "rules": "required|max:64"},
+    {"key": "WORLD_SIZE", "name": "World size", "default_value": "2", "description": "1 small, 2 medium, 3 large.", "user_editable": true, "rules": "required|in:1,2,3"},
+    {"key": "MAX_PLAYERS", "name": "Max players", "default_value": "8", "user_editable": true, "rules": "required|integer"},
+    {"key": "PASSWORD", "name": "Join password", "default_value": "", "user_editable": true, "rules": "max:64"}
+  ],
+  "ports": [{"name": "Game", "port": 7777, "protocol": "tcp"}],
+  "notes": "The first start generates the world and can take a few minutes.",
+  "version": 1
+}

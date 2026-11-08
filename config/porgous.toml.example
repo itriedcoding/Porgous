@@ -1,0 +1,64 @@
+# Porgous panel configuration.
+# Copy to /etc/porgous/porgous.toml (Linux) or porgous.toml next to the binary.
+# Every value can be overridden with PORGOUS_* environment variables; see docs.
+
+data_dir = "/var/lib/porgous"
+# SQLite is the default. For PostgreSQL use:
+# database_url = "postgres://porgous:password@127.0.0.1:5432/porgous"
+database_url = "sqlite:///var/lib/porgous/porgous.db?mode=rwc"
+bind = "0.0.0.0:8080"
+public_url = "https://panel.example.com"
+panel_name = "Porgous"
+session_ttl_hours = 168
+secure_cookies = true
+trusted_proxies = ["127.0.0.1"]
+allow_registration = false
+allow_user_servers = true
+max_upload_bytes = 536870912
+# secret_key = "base64-or-hex-32-byte-key"   # generated into <data_dir>/secret.key
+
+[rate_limit]
+enabled = true
+requests_per_minute = 300
+auth_per_minute = 10
+
+[docker]
+enabled = true
+# host = "unix:///var/run/docker.sock"
+network = "porgous"
+default_image = "eclipse-temurin:21-jre"
+timezone = "UTC"
+memory_overhead_mb = 128
+# container_user = "1000:1000"
+stop_timeout_secs = 30
+console_history_lines = 400
+
+[node]
+name = "local"
+bind = "0.0.0.0:8081"
+data_dir = "/var/lib/porgous-node"
+token = ""
+secret = ""
+sftp_port = 2022
+
+[updates]
+enabled = true
+repo = "itriedcoding/Porgous"
+channel = "stable"          # stable or prerelease
+public_key = ""             # Ed25519 public key; required to install updates
+check_interval_hours = 6
+auto_apply = false
+asset_prefix = "porgous"
+restart_command = "systemctl restart porgous"
+
+[tls]
+# Direct TLS. Leave unset to terminate TLS at a reverse proxy.
+# cert = "/etc/porgous/tls/fullchain.pem"
+# key = "/etc/porgous/tls/privkey.pem"
+
+[admin]
+# Used only when the database has no users. Leave password empty to generate one
+# into <data_dir>/initial-admin.txt.
+email = "admin@example.com"
+username = "admin"
+password = ""

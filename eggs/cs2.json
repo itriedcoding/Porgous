@@ -1,0 +1,29 @@
+{
+  "id": "cs2",
+  "name": "Counter-Strike 2",
+  "description": "Counter-Strike 2 dedicated server with configurable map, tickrate and password.",
+  "category": "Shooter",
+  "docker_images": ["joedwards32/cs2:latest"],
+  "startup": "",
+  "stop_command": "quit",
+  "startup_detection": "Server is ready",
+  "install": {
+    "image": "alpine:3.20",
+    "script": "set -e\nmkdir -p game/csgo/cfg\necho 'CS2 server files are downloaded by the container image on first start.'\necho 'Install complete'"
+  },
+  "variables": [
+    {"key": "CS2_SERVERNAME", "name": "Server name", "default_value": "Porgous CS2", "user_editable": true, "rules": "required|max:64"},
+    {"key": "CS2_PW", "name": "Join password", "default_value": "", "user_editable": true, "rules": "max:64"},
+    {"key": "CS2_RCONPW", "name": "RCON password", "default_value": "", "user_editable": true, "rules": "max:64"},
+    {"key": "CS2_MAPGROUP", "name": "Map group", "default_value": "mg_active", "user_editable": true, "rules": "required|max:64"},
+    {"key": "CS2_STARTMAP", "name": "Start map", "default_value": "de_dust2", "user_editable": true, "rules": "required|max:64"},
+    {"key": "CS2_MAXPLAYERS", "name": "Max players", "default_value": "12", "user_editable": true, "rules": "required|integer"},
+    {"key": "CS2_TICKRATE", "name": "Tickrate", "default_value": "64", "user_editable": true, "rules": "required|in:64,128"}
+  ],
+  "ports": [
+    {"name": "Game", "port": 27015, "protocol": "udp"},
+    {"name": "RCON", "port": 27015, "protocol": "tcp"}
+  ],
+  "notes": "CS2 requires a 64-bit host and about 60 GB of disk for the server files.",
+  "version": 1
+}

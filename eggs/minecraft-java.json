@@ -1,0 +1,23 @@
+{
+  "id": "minecraft-java",
+  "name": "Minecraft: Java Edition (Fabric)",
+  "description": "Fabric Minecraft server with configurable version, memory and MOTD. Saves live in the server volume.",
+  "category": "Minecraft",
+  "docker_images": ["eclipse-temurin:21-jre", "eclipse-temurin:17-jre"],
+  "startup": "java -Xms{{MEMORY}}M -Xmx{{MEMORY}}M -XX:+UseG1GC -jar {{SERVER_JARFILE}} nogui",
+  "stop_command": "stop",
+  "startup_detection": "Done (",
+  "install": {
+    "image": "eclipse-temurin:21-jre",
+    "script": "set -e\necho 'Downloading Fabric server launcher'\ncurl -fsSL -o server.jar \"https://meta.fabricmc.net/v2/versions/loader/{{MC_VERSION}}/{{FABRIC_LOADER}}/1.0.1/server/jar\"\necho 'eula=true' > eula.txt\nmkdir -p mods config\necho 'Install complete'"
+  },
+  "variables": [
+    {"key": "MEMORY", "name": "Memory (MB)", "description": "Maximum Java heap in megabytes.", "default_value": "2048", "user_editable": true, "rules": "required|integer|between:512,65536"},
+    {"key": "MC_VERSION", "name": "Minecraft version", "default_value": "1.21.4", "user_editable": true, "rules": "required|max:32"},
+    {"key": "FABRIC_LOADER", "name": "Fabric loader", "default_value": "0.16.9", "user_editable": true, "rules": "required|max:32"},
+    {"key": "SERVER_JARFILE", "name": "Server jar", "default_value": "server.jar", "user_editable": false, "rules": "required|max:64"}
+  ],
+  "ports": [{"name": "Game", "port": 25565, "protocol": "tcp"}],
+  "notes": "Open the allocated port in your firewall. Set online-mode=false only for private testing.",
+  "version": 1
+}

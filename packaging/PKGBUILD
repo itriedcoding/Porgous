@@ -1,0 +1,32 @@
+# Maintainer: Porgous contributors
+pkgname=porgous
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Lightweight Rust game server management panel (Pterodactyl alternative)"
+arch=('x86_64')
+url="https://github.com/itriedcoding/Porgous"
+license=('MIT')
+depends=('gcc-libs' 'openssl' 'docker')
+makedepends=('rust' 'cargo' 'nodejs' 'npm')
+install=porgous.install
+source=("$pkgname-$pkgver.tar.gz::https://github.com/itriedcoding/Porgous/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/Porgous-$pkgver/web"
+  npm ci
+  npm run build
+  cd ..
+  export RUSTUP_TOOLCHAIN=stable
+  cargo build --release --locked
+}
+
+package() {
+  install -Dm755 "$srcdir/Porgous-$pkgver/target/release/porgous" "$pkgdir/usr/bin/porgous"
+  install -Dm755 "$srcdir/Porgous-$pkgver/target/release/porgous-agent" "$pkgdir/usr/bin/porgous-agent"
+  install -Dm644 "$srcdir/Porgous-$pkgver/packaging/porgous.service" "$pkgdir/usr/lib/systemd/system/porgous.service"
+  install -Dm644 "$srcdir/Porgous-$pkgver/packaging/porgous-agent.service" "$pkgdir/usr/lib/systemd/system/porgous-agent.service"
+  install -Dm644 "$srcdir/Porgous-$pkgver/config/porgous.toml.example" "$pkgdir/etc/porgous/porgous.toml"
+  install -Dm644 "$srcdir/Porgous-$pkgver/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -d "$pkgdir/var/lib/porgous" "$pkgdir/var/lib/porgous-node"
+}

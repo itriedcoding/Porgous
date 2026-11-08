@@ -1,0 +1,27 @@
+[Unit]
+Description=Porgous game server panel
+Documentation=https://github.com/itriedcoding/Porgous
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=porgous
+Group=porgous
+ExecStart=/usr/local/bin/porgous serve --config /etc/porgous/porgous.toml
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+LimitNOFILE=65535
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/porgous
+Environment=RUST_LOG=info
+# The panel needs access to the Docker socket when it hosts servers locally.
+# Prefer rootless Docker or a restricted socket proxy over group membership.
+SupplementaryGroups=docker
+
+[Install]
+WantedBy=multi-user.target

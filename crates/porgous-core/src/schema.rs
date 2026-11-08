@@ -1,0 +1,203 @@
+//! Database schema.
+//!
+//! Statements are written in the portable subset shared by SQLite and
+//! PostgreSQL: TEXT identifiers, BIGINT integers, REAL floats, no dialect
+//! specific column types and no server-side autoincrement. Placeholders are
+//! written as `?` and rewritten by [`crate::db::Db`] for PostgreSQL.
+
+pub const MIGRATIONS: &[&[&str]] = &[&[
+    "CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        root_admin BIGINT NOT NULL DEFAULT 0,
+        suspended BIGINT NOT NULL DEFAULT 0,
+        totp_secret TEXT,
+        totp_enabled BIGINT NOT NULL DEFAULT 0,
+        totp_recovery TEXT,
+        created_at BIGINT NOT NULL,
+        updated_at BIGINT NOT NULL,
+        last_login_at BIGINT
+    )",
+    "CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        csrf_token TEXT NOT NULL,
+        ip TEXT,
+        user_agent TEXT,
+        created_at BIGINT NOT NULL,
+        expires_at BIGINT NOT NULL,
+        last_seen_at BIGINT
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)",
+    "CREATE TABLE IF NOT EXISTS api_keys (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        key_hash TEXT NOT NULL UNIQUE,
+        prefix TEXT NOT NULL,
+        scopes TEXT NOT NULL DEFAULT '',
+        created_at BIGINT NOT NULL,
+        last_used_at BIGINT,
+        expires_at BIGINT
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id)",
+    "CREATE TABLE IF NOT EXISTS nodes (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        is_local BIGINT NOT NULL DEFAULT 0,
+        fqdn TEXT NOT NULL,
+        scheme TEXT NOT NULL DEFAULT 'http',
+        port BIGINT NOT NULL DEFAULT 8081,
+        token_enc TEXT NOT NULL,
+        secret_enc TEXT NOT NULL,
+        memory_mb BIGINT NOT NULL DEFAULT 0,
+        disk_mb BIGINT NOT NULL DEFAULT 0,
+        port_range_start BIGINT NOT NULL DEFAULT 25000,
+        port_range_end BIGINT NOT NULL DEFAULT 26000,
+        maintenance BIGINT NOT NULL DEFAULT 0,
+        sftp_port BIGINT NOT NULL DEFAULT 2022,
+        created_at BIGINT NOT NULL,
+        updated_at BIGINT NOT NULL
+    )",
+    "CREATE TABLE IF NOT EXISTS servers (
+        id TEXT PRIMARY KEY,
+        uuid TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        owner_id TEXT NOT NULL,
+        node_id TEXT NOT NULL,
+        egg_id TEXT NOT NULL,
+        image TEXT NOT NULL,
+        startup TEXT NOT NULL,
+        stop_command TEXT,
+        env TEXT NOT NULL DEFAULT '{}',
+        memory_mb BIGINT NOT NULL DEFAULT 1024,
+        swap_mb BIGINT NOT NULL DEFAULT 0,
+        disk_mb BIGINT NOT NULL DEFAULT 5120,
+        cpu_percent BIGINT NOT NULL DEFAULT 100,
+        pids_limit BIGINT NOT NULL DEFAULT 512,
+        io_weight BIGINT NOT NULL DEFAULT 500,
+        auto_restart BIGINT NOT NULL DEFAULT 1,
+        restart_policy TEXT NOT NULL DEFAULT 'on-failure',
+        crash_count BIGINT NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'offline',
+        container_id TEXT,
+        last_error TEXT,
+        install_log TEXT,
+        suspended BIGINT NOT NULL DEFAULT 0,
+        created_at BIGINT NOT NULL,
+        updated_at BIGINT NOT NULL,
+        last_started_at BIGINT,
+        last_crashed_at BIGINT
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_servers_owner ON servers(owner_id)",
+    "CREATE INDEX IF NOT EXISTS idx_servers_node ON servers(node_id)",
+    "CREATE TABLE IF NOT EXISTS allocations (
+        id TEXT PRIMARY KEY,
+        node_id TEXT NOT NULL,
+        ip TEXT NOT NULL,
+        port BIGINT NOT NULL,
+        server_id TEXT,
+        is_primary BIGINT NOT NULL DEFAULT 0,
+        alias TEXT,
+        created_at BIGINT NOT NULL,
+        UNIQUE(node_id, ip, port)
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_allocations_server ON allocations(server_id)",
+    "CREATE TABLE IF NOT EXISTS server_variables (
+        id TEXT PRIMARY KEY,
+        server_id TEXT NOT NULL,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL DEFAULT '',
+        created_at BIGINT NOT NULL,
+        UNIQUE(server_id, key)
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_server_variables_server ON server_variables(server_id)",
+    "CREATE TABLE IF NOT EXISTS subusers (
+        id TEXT PRIMARY KEY,
+        server_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        permissions TEXT NOT NULL DEFAULT '[]',
+        created_at BIGINT NOT NULL,
+        UNIQUE(server_id, user_id)
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_subusers_user ON subusers(user_id)",
+    "CREATE TABLE IF NOT EXISTS backups (
+        id TEXT PRIMARY KEY,
+        server_id TEXT NOT NULL,
+        uuid TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        bytes BIGINT NOT NULL DEFAULT 0,
+        checksum TEXT,
+        status TEXT NOT NULL DEFAULT 'creating',
+        error TEXT,
+        created_at BIGINT NOT NULL,
+        completed_at BIGINT
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_backups_server ON backups(server_id)",
+    "CREATE TABLE IF NOT EXISTS schedules (
+        id TEXT PRIMARY KEY,
+        server_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        cron TEXT NOT NULL,
+        tasks TEXT NOT NULL DEFAULT '[]',
+        enabled BIGINT NOT NULL DEFAULT 1,
+        last_run_at BIGINT,
+        next_run_at BIGINT,
+        created_at BIGINT NOT NULL
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_schedules_server ON schedules(server_id)",
+    "CREATE INDEX IF NOT EXISTS idx_schedules_next ON schedules(next_run_at)",
+    "CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        actor TEXT NOT NULL,
+        action TEXT NOT NULL,
+        target TEXT NOT NULL DEFAULT '',
+        ip TEXT,
+        metadata TEXT NOT NULL DEFAULT '{}',
+        created_at BIGINT NOT NULL
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at)",
+    "CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL DEFAULT '',
+        level TEXT NOT NULL DEFAULT 'info',
+        is_read BIGINT NOT NULL DEFAULT 0,
+        created_at BIGINT NOT NULL
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read)",
+    "CREATE TABLE IF NOT EXISTS metrics (
+        server_id TEXT NOT NULL,
+        cpu REAL NOT NULL DEFAULT 0,
+        memory_bytes BIGINT NOT NULL DEFAULT 0,
+        disk_bytes BIGINT NOT NULL DEFAULT 0,
+        net_rx BIGINT NOT NULL DEFAULT 0,
+        net_tx BIGINT NOT NULL DEFAULT 0,
+        created_at BIGINT NOT NULL,
+        PRIMARY KEY (server_id, created_at)
+    )",
+    "CREATE INDEX IF NOT EXISTS idx_metrics_created ON metrics(created_at)",
+    "CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )",
+    "CREATE TABLE IF NOT EXISTS updates (
+        id TEXT PRIMARY KEY,
+        version TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        status TEXT NOT NULL,
+        log TEXT NOT NULL DEFAULT '',
+        created_at BIGINT NOT NULL,
+        completed_at BIGINT
+    )",
+]];
