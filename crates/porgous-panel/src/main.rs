@@ -135,7 +135,7 @@ async fn main() -> Result<()> {
             }
         }
         "keygen" => {
-            let out = positional(&args[1..])
+            let out = positional(&args[2..])
                 .first()
                 .map(PathBuf::from)
                 .unwrap_or_else(|| PathBuf::from("porgous-signing.key"));
@@ -155,7 +155,7 @@ async fn main() -> Result<()> {
             );
         }
         "sign" => {
-            let rest = positional(&args[1..]);
+            let rest = positional(&args[2..]);
             let key_path = rest
                 .first()
                 .context("usage: porgous sign <secret-key-file> <file>")?;
