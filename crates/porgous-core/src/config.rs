@@ -426,7 +426,10 @@ impl Config {
             .with_context(|| format!("invalid node bind address {}", self.node.bind))
     }
     pub fn sqlite_path(&self) -> Option<PathBuf> {
-        let rest = self.database_url.strip_prefix("sqlite://")?;
+        let rest = self
+            .database_url
+            .strip_prefix("sqlite://")
+            .or_else(|| self.database_url.strip_prefix("sqlite:"))?;
         let path = rest.split('?').next().unwrap_or(rest);
         if path.is_empty() || path == ":memory:" {
             return None;

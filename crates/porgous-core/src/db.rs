@@ -149,7 +149,9 @@ impl Db {
 }
 
 pub fn sqlite_path(url: &str) -> Option<&Path> {
-    let rest = url.strip_prefix("sqlite://")?;
+    let rest = url
+        .strip_prefix("sqlite://")
+        .or_else(|| url.strip_prefix("sqlite:"))?;
     let path = rest.split('?').next().unwrap_or(rest);
     if path.is_empty() || path == ":memory:" {
         None
@@ -251,7 +253,8 @@ mod tests {
     #[tokio::test]
     async fn sqlite_migrates_and_persists_settings() {
         let dir = tempfile::tempdir().unwrap();
-        let url = format!("sqlite://{}/test.db?mode=rwc", dir.path().display());
+        let db_path = dir.path().join("test.db");
+        let url = format!("sqlite:{}?mode=rwc", db_path.to_string_lossy().replace('\\', "/"));
         let db = Db::connect(&url).await.unwrap();
         db.set_setting("panel_name", "Test").await.unwrap();
         assert_eq!(db.setting("panel_name").await.unwrap().as_deref(), Some("Test"));
