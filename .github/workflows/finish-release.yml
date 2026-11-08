@@ -128,11 +128,17 @@ jobs:
                   notes.append("accepted as hex keypair, first 32 bytes")
 
           if seed is None:
+              if re.fullmatch(r"[\w./\\-]+\.(key|pem|txt|pub)", body, re.I):
+                  fail(
+                      "RELEASE_SIGNING_KEY contains a file name, not the key itself",
+                      f"value ends with {body[-4:]!r}; paste the 44-character key file contents",
+                  )
               odd = sorted({c for c in body if c not in B64_CHARS})
               fail(
                   "RELEASE_SIGNING_KEY is not a recognisable Ed25519 secret key",
                   f"length={len(body)}, pem={has_pem}, unexpected_characters={odd!r}, "
-                  f"whitespace_separated_parts={len(text.split())}, notes={'; '.join(notes)}",
+                  f"whitespace_separated_parts={len(text.split())}, notes={'; '.join(notes)}; "
+                  "expected the 44-character base64 seed printed by 'porgous keygen'",
               )
 
           key_dir = "/tmp/release-key"
