@@ -30,6 +30,8 @@ Configure `updates.public_key` with the release signing key. The updater refuses
 
 ## Auditing
 
+Dependency auditing runs in CI with `cargo audit`. The only ignored advisory is RUSTSEC-2023-0071 (`rsa`): the crate is an optional `sqlx-mysql` dependency and the MySQL driver is not enabled or compiled, so the affected code is unreachable. Revisit this if MySQL support is added.
+
 Review `/api/admin/audit` and notifications. Authentication failures, file writes, power actions, user/node changes, backups and update installs are recorded. Rotate or export logs before retention cleanup (365 days for audit rows).
 
 ## Rate limiting
