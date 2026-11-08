@@ -113,7 +113,25 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Tests
         shell: bash
-        run: cargo test --workspace
+        run: |
+          set +e
+          cargo test --workspace --no-fail-fast 2>&1 | tee test-output.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            details=$(grep -aE '^(test .* FAILED|failures:|---- .* stdout ----|thread .* panicked|assertion|error\[|error:)' test-output.log | tail -80)
+            [ -n "$details" ] || details=$(tail -40 test-output.log)
+            details=${details//'%'/'%25'}
+            details=${details//$'\r'/}
+            details=${details//$'\n'/'%0A'}
+            echo "::error::Windows cargo test failed with exit $status. $details"
+          fi
+          exit "$status"
+      - name: Upload Windows test output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-output
+          path: test-output.log
       - name: Build binaries
         shell: bash
         run: cargo build --release --locked --bin porgous --bin porgous-agent
