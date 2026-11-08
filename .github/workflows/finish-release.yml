@@ -40,37 +40,144 @@ jobs:
             exit 1
           fi
           printf '%s\n' "$pub" > dist/porgous-signing.pub
-      - name: Validate signing key, sign, and verify
+      - name: Validate signing key
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
         run: |
           set -euo pipefail
-          expected="lAVyQ1BTXGUA3hOqYSDsHaHJXeqw2KhNp2xrW9VvIWw="
-          key=$(printf '%s' "${RELEASE_SIGNING_KEY:-}" | tr -d '[:space:]')
-          if ! printf '%s' "$key" | base64 -d > /tmp/signing.seed 2>/dev/null; then
-            echo "::error::RELEASE_SIGNING_KEY is not valid base64."
-            exit 1
-          fi
-          bytes=$(wc -c < /tmp/signing.seed)
-          if [ "$bytes" -ne 32 ]; then
-            echo "::error::RELEASE_SIGNING_KEY decodes to $bytes bytes; expected 32."
-            exit 1
-          fi
-          { printf '302e020100300506032b657004220420'; xxd -p -c 256 /tmp/signing.seed; } | xxd -r -p > /tmp/signing.der
-          openssl pkey -inform DER -in /tmp/signing.der -pubout -outform DER -out /tmp/signing.pub.der
-          derived=$(tail -c 32 /tmp/signing.pub.der | base64 -w0)
-          if [ "$derived" != "$expected" ]; then
-            echo "::error::RELEASE_SIGNING_KEY does not match RELEASE_PUBLIC_KEY; derived public key is $derived."
-            exit 1
-          fi
-          chmod 600 /tmp/signing.seed
+          python3 - <<'PY'
+          import base64
+          import os
+          import re
+          import subprocess
+          import sys
+
+          EXPECTED = "lAVyQ1BTXGUA3hOqYSDsHaHJXeqw2KhNp2xrW9VvIWw="
+          ED_PKCS8 = bytes.fromhex("302e020100300506032b657004220420")
+          B64_CHARS = set(
+              "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=_-"
+          )
+
+
+          def annotate(level, message):
+              msg = message.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+              print(f"::{level}::{msg}")
+
+
+          def fail(message, detail=""):
+              annotate("error", message + (f" [{detail}]" if detail else ""))
+              sys.exit(1)
+
+
+          raw = os.environ.get("RELEASE_SIGNING_KEY", "")
+          if not raw.strip():
+              fail("RELEASE_SIGNING_KEY is empty")
+
+          text = raw.replace("\ufeff", "").strip()
+          if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'`":
+              text = text[1:-1].strip()
+
+          has_pem = "-----BEGIN" in text
+          if has_pem:
+              match = re.search(
+                  r"-----BEGIN [A-Z ]*PRIVATE KEY-----(.*?)-----END [A-Z ]*PRIVATE KEY-----",
+                  text,
+                  re.S,
+              )
+              if not match:
+                  fail("RELEASE_SIGNING_KEY has a PEM header but no complete PEM block")
+              body = "".join(match.group(1).split())
+          else:
+              body = "".join(text.split())
+
+          seed = None
+          note = None
+          notes = []
+
+
+          def decode_b64(value):
+              value = value.replace("-", "+").replace("_", "/")
+              return base64.b64decode(value + "=" * ((-len(value)) % 4), validate=True)
+
+
+          try:
+              blob = decode_b64(body)
+          except Exception as exc:  # noqa: BLE001 - any decode failure is a format problem
+              blob = None
+              notes.append(f"base64 decode failed: {type(exc).__name__}")
+
+          if blob is not None:
+              if len(blob) == 32:
+                  seed, note = blob, "32-byte seed"
+              elif len(blob) == 48 and blob.startswith(ED_PKCS8):
+                  seed, note = blob[-32:], "Ed25519 PKCS#8 DER"
+              elif len(blob) == 64:
+                  seed, note = blob[:32], "64-byte keypair, first 32 bytes"
+              else:
+                  notes.append(f"base64 decoded to {len(blob)} bytes")
+              if seed is not None:
+                  notes.append(f"accepted as {note}")
+
+          if seed is None:
+              lowered = body.lower()
+              if re.fullmatch(r"[0-9a-f]{64}", lowered):
+                  seed = bytes.fromhex(lowered)
+                  notes.append("accepted as hex seed")
+              elif re.fullmatch(r"[0-9a-f]{128}", lowered):
+                  seed = bytes.fromhex(lowered)[:32]
+                  notes.append("accepted as hex keypair, first 32 bytes")
+
+          if seed is None:
+              odd = sorted({c for c in body if c not in B64_CHARS})
+              fail(
+                  "RELEASE_SIGNING_KEY is not a recognisable Ed25519 secret key",
+                  f"length={len(body)}, pem={has_pem}, unexpected_characters={odd!r}, "
+                  f"whitespace_separated_parts={len(text.split())}, notes={'; '.join(notes)}",
+              )
+
+          key_dir = "/tmp/release-key"
+          os.makedirs(key_dir, exist_ok=True)
+          with open(os.path.join(key_dir, "seed.der"), "wb") as handle:
+              handle.write(ED_PKCS8 + seed)
+          with open(os.path.join(key_dir, "signing.key"), "w") as handle:
+              handle.write(base64.b64encode(seed).decode())
+
+          subprocess.run(
+              [
+                  "openssl",
+                  "pkey",
+                  "-inform",
+                  "DER",
+                  "-in",
+                  os.path.join(key_dir, "seed.der"),
+                  "-pubout",
+                  "-outform",
+                  "DER",
+                  "-out",
+                  os.path.join(key_dir, "public.der"),
+              ],
+              check=True,
+          )
+          with open(os.path.join(key_dir, "public.der"), "rb") as handle:
+              spki = handle.read()
+          derived = base64.b64encode(spki[-32:]).decode()
+          if derived != EXPECTED:
+              fail(
+                  "RELEASE_SIGNING_KEY does not match the release public key",
+                  f"derived={derived}, notes={'; '.join(notes)}",
+              )
+
+          os.chmod(os.path.join(key_dir, "signing.key"), 0o600)
+          annotate("warning", "Signing key parsed as: " + "; ".join(notes))
+          PY
+      - name: Sign checksums and verify signature
+        run: |
+          set -euo pipefail
           chmod +x dist/porgous-x86_64-linux
-          ./dist/porgous-x86_64-linux sign /tmp/signing.seed dist/SHA256SUMS
-          base64 -d dist/SHA256SUMS.sig > /tmp/SHA256SUMS.sig.bin
-          tail -c 32 /tmp/signing.pub.der > /tmp/signing.pub.raw
-          { printf '302a300506032b6570032100'; xxd -p -c 256 /tmp/signing.pub.raw; } | xxd -r -p > /tmp/signing.pub.spki.der
-          openssl pkeyutl -verify -pubin -inkey /tmp/signing.pub.spki.der -keyform DER -rawin \
-            -in dist/SHA256SUMS -sigfile /tmp/SHA256SUMS.sig.bin
+          ./dist/porgous-x86_64-linux sign /tmp/release-key/signing.key dist/SHA256SUMS
+          base64 -d dist/SHA256SUMS.sig > /tmp/release-key/SHA256SUMS.sig.bin
+          openssl pkeyutl -verify -pubin -inkey /tmp/release-key/public.der -keyform DER -rawin \
+            -in dist/SHA256SUMS -sigfile /tmp/release-key/SHA256SUMS.sig.bin
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
